@@ -262,23 +262,39 @@ namespace BLELite
             {
                 if (Instance.connectedDevices.ContainsKey(name))
                 {
-                    var peripheral = Instance.connectedDevices[name];
-                    var servicesResult = await peripheral.GetGattServicesAsync();
-                    if (servicesResult.Status != GattCommunicationStatus.Success)
+                    GattDeviceService gattService = null;
+                    GattCharacteristic gattCharacteristic = null;
+                    bool isSubscribed = false;
+
+                    if (Instance.connectedServices.ContainsKey((name, serviceUUID)) &&
+                       Instance.connectedCharacteristics.ContainsKey((name, serviceUUID, characteristicUUID)))
                     {
-                        SendMessage($"Error~{servicesResult.Status}");
-                        return;
+                        isSubscribed = true;
+                        gattService = Instance.connectedServices[(name, serviceUUID)];
+                        gattCharacteristic = Instance.connectedCharacteristics[(name, serviceUUID, characteristicUUID)];
                     }
-                    GattDeviceService gattService = servicesResult.Services.FirstOrDefault(s => s.Uuid == serviceUUID);
-                    if (gattService == null)
-                        return;
-                    var characteristicsResult = await gattService.GetCharacteristicsAsync();
-                    if (characteristicsResult.Status != GattCommunicationStatus.Success)
+
+                    if (gattService == null || gattCharacteristic == null)
                     {
-                        SendMessage($"Error~{characteristicsResult.Status}");
-                        return;
+                        var peripheral = Instance.connectedDevices[name];
+                        var servicesResult = await peripheral.GetGattServicesAsync();
+                        if (servicesResult.Status != GattCommunicationStatus.Success)
+                        {
+                            SendMessage($"Error~{servicesResult.Status}");
+                            return;
+                        }
+                        gattService = servicesResult.Services.FirstOrDefault(s => s.Uuid == serviceUUID);
+                        if (gattService == null)
+                            return;
+                        var characteristicsResult = await gattService.GetCharacteristicsAsync();
+                        if (characteristicsResult.Status != GattCommunicationStatus.Success)
+                        {
+                            SendMessage($"Error~{characteristicsResult.Status}");
+                            return;
+                        }
+                        gattCharacteristic = characteristicsResult?.Characteristics.FirstOrDefault(c => c.Uuid == characteristicUUID);
                     }
-                    var gattCharacteristic = characteristicsResult?.Characteristics.FirstOrDefault(c => c.Uuid == characteristicUUID);
+
                     if (gattCharacteristic != null)
                     {
                         var result = await gattCharacteristic.ReadValueAsync();
@@ -288,7 +304,7 @@ namespace BLELite
                             using (DataReader reader = DataReader.FromBuffer(result.Value))
                             {
                                 reader.ReadBytes(readBytes);
-                                SendMessage($"DidUpdateValueForCharacteristic~{peripheral.BluetoothAddress}~{serviceUUID}~{Convert.ToBase64String(readBytes)}");
+                                SendMessage($"DidUpdateValueForCharacteristic~{gattService.Device.BluetoothAddress}~{characteristicUUID}~{Convert.ToBase64String(readBytes)}");
                             }
                         }
                         else
@@ -296,7 +312,8 @@ namespace BLELite
                             SendMessage($"Error~{result.Status}");
                         }
                     }
-                    gattService.Dispose();
+                    if (!isSubscribed)
+                        gattService.Dispose();
                 }
             }
         }
@@ -307,23 +324,40 @@ namespace BLELite
             {
                 if (Instance.connectedDevices.ContainsKey(name))
                 {
-                    var peripheral = Instance.connectedDevices[name];
-                    var servicesResult = await peripheral.GetGattServicesAsync();
-                    if (servicesResult.Status != GattCommunicationStatus.Success)
+                    GattDeviceService gattService = null;
+                    GattCharacteristic gattCharacteristic = null;
+                    bool isSubscribed = false;
+
+                    if (Instance.connectedServices.ContainsKey((name, serviceUUID)) &&
+                       Instance.connectedCharacteristics.ContainsKey((name, serviceUUID, characteristicUUID)))
                     {
-                        SendMessage($"Error~{servicesResult.Status}");
-                        return;
+                        isSubscribed = true;
+                        gattService = Instance.connectedServices[(name, serviceUUID)];
+                        gattCharacteristic = Instance.connectedCharacteristics[(name, serviceUUID, characteristicUUID)];
                     }
-                    GattDeviceService gattService = servicesResult.Services.FirstOrDefault(s => s.Uuid == serviceUUID);
-                    if (gattService == null)
-                        return;
-                    var characteristicsResult = await gattService.GetCharacteristicsAsync();
-                    if (characteristicsResult.Status != GattCommunicationStatus.Success)
+
+                    if (gattService == null || gattCharacteristic == null)
                     {
-                        SendMessage($"Error~{characteristicsResult.Status}");
-                        return;
+
+                        var peripheral = Instance.connectedDevices[name];
+                        var servicesResult = await peripheral.GetGattServicesAsync();
+                        if (servicesResult.Status != GattCommunicationStatus.Success)
+                        {
+                            SendMessage($"Error~{servicesResult.Status}");
+                            return;
+                        }
+                        gattService = servicesResult.Services.FirstOrDefault(s => s.Uuid == serviceUUID);
+                        if (gattService == null)
+                            return;
+                        var characteristicsResult = await gattService.GetCharacteristicsAsync();
+                        if (characteristicsResult.Status != GattCommunicationStatus.Success)
+                        {
+                            SendMessage($"Error~{characteristicsResult.Status}");
+                            return;
+                        }
+                        gattCharacteristic = characteristicsResult?.Characteristics.FirstOrDefault(c => c.Uuid == characteristicUUID);
                     }
-                    var gattCharacteristic = characteristicsResult?.Characteristics.FirstOrDefault(c => c.Uuid == characteristicUUID);
+
                     if (gattCharacteristic != null)
                     {
                         GattWriteOption option = GattWriteOption.WriteWithoutResponse;
@@ -345,7 +379,8 @@ namespace BLELite
                             }
                         }
                     }
-                    gattService.Dispose();
+                    if (!isSubscribed)
+                        gattService.Dispose();
                 }
             }
         }
