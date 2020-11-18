@@ -800,7 +800,7 @@ namespace BLELite
 
         private static void SendMessage(string message)
         {
-            client?.SendCommand(new PipeCommands.SendMessage() { Message = message });
+            client?.SendCommandAsync(new PipeCommands.SendMessage() { Message = message });
 #if DEBUG
             Console.WriteLine("Send Message: " + message);
 #endif
